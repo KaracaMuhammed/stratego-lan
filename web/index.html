@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <title>Stratego</title>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <style>
+      /* ---------- Page basics ---------- */
+      :root {
+        --pawn-scale: 1.3; /* ★ PAWN SIZE ON THE BOARD: 1 = fills its square, 1.15 = a bit bigger, 1.3 = much bigger */
+        --bg: #1a1a1a; /* page background */
+        --text: #cacaca; /* main text (khaki white) */
+        --brass: #c2ad6a; /* title / accents (muted brass) */
+        --panel: #1d2017; /* side panels and trays */
+        --grid: #4b4f37; /* thin lines between squares */
+        --field: #64665d; /* empty square (olive field) */
+        --field-alt: #64665d; /* empty square, second tone of the checkerboard */
+        --blue-square: #001f54; /* square holding a blue pawn */
+        --red-square: #64201c; /* square holding a red pawn */
+        --select: #140808; /* frame around the pawn you picked */
+        --move: rgba(255, 255, 255, 0.8); /* dot on squares you can move to */
+        --attack: #e2552d; /* frame on enemy squares you can attack */
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        overflow: hidden;
+        user-select: none;
+      }
+      button {
+        background: #1f1f1f;
+        color: var(--text);
+        font-weight: 700;
+        border: 1px solid #2e2e2e;
+        border-radius: 4px;
+        padding: 12px 26px;
+        font-size: 13px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #8c2f27;
+        border-color: #b04a40;
+      }
+
+      /* ---------- Join screen ---------- */
+      #join {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: center;
+        justify-content: center;
+      }
+      #join h1 {
+        letter-spacing: 8px;
+        color: var(--brass);
+        margin: 0;
+      }
+      input[type="text"] {
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 0;
+        text-align: center;
+      }
+
+      /* ---------- Game screen ----------
+     Portrait (phone upright): ONE column = top bar / enemy strip / board / my strip / buttons
+     Landscape (PC, wide)    : THREE columns = left panel / board / right panel          */
+      #game {
+        display: none;
+        height: 100%;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+      }
+      body.landscape #game {
+        flex-direction: row;
+        justify-content: center;
+        gap: 14px;
+      }
+      #left,
+      #right {
+        display: contents;
+      } /* portrait: panels vanish, their children stack in #game */
+      body.landscape #left,
+      body.landscape #right {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1 1 0;
+        min-width: 200px;
+        height: 100%;
+        padding: 8px 0;
+      }
+      #top {
+        height: 52px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 15px;
+        text-align: center;
+      }
+      body.landscape #top {
+        height: auto;
+        padding: 6px 0;
+        gap: 6px;
+      }
+      #status {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+      }
+      .badge {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        padding: 2px 8px;
+        border-radius: 10px;
+      }
+      .badge.blue {
+        background: #3f6fd0;
+      }
+      .badge.red {
+        background: #c94a4a;
+      }
+      #battle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+      }
+      #battle img {
+        width: 28px;
+        height: 32px;
+        object-fit: contain;
+      }
+      #bottom {
+        height: 60px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      body.landscape #bottom {
+        height: auto;
+        justify-content: center;
+        padding-bottom: 6px;
+      }
+      button {
+        padding: 10px 24px;
+      }
+
+      /* ---------- ★ FULL HEIGHT ON PHONES ----------
+     --app-h is set by the script from the REAL visible height (phone browsers have address bars
+     that make "100%" wrong). 100dvh is the fallback until the script runs. */
+      html,
+      body {
+        height: var(--app-h, 100dvh);
+      }
+      body {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        overscroll-behavior: none;
+      }
+      #join,
+      #game {
+        height: var(--app-h, 100dvh);
+      }
+      #game {
+        /* keep away from the notch / home bar */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+          env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      .icon-btn {
+        padding: 10px 14px;
+        font-size: 16px;
+      }
+
+      /* ---------- Board squares ----------
+     Empty square = flat olive field (subtle checkerboard).  Lake square = water sprite (water.png, static).
+     Selected pawn = white frame.  Reachable empty square = white dot.  Enemy you can attack = orange frame. */
+      #stage {
+        position: relative;
+        flex: none;
+      } /* the fight overlay is drawn on top of this */
+      #board {
+        display: grid;
+        grid-template-columns: repeat(10, var(--cw));
+      }
+      .cell {
+        width: var(--cw);
+        height: var(--ch);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--field);
+        border: 0.5px solid var(--grid);
+        background: #017b11 url(grass.png) center / 100% 100% no-repeat;
+      }
+      .cell.alt {
+        background: #017b11 url(grass.png) center / 100% 100% no-repeat;
+      }
+      .cell.lake {
+        background: #0e4a8a url(water.png) center / 100% 100% no-repeat;
+      } /* blocked water */
+      .cell.blue {
+        /* background: var(--blue-square); */
+        background: transparent url(grass.png) center / 100% 100% no-repeat;
+      } /* square holding a blue pawn */
+      .cell.red {
+        /* background: var(--red-square); */
+        background: transparent url(grass.png) center / 100% 100% no-repeat;
+      }
+      .cell.sel {
+        box-shadow:
+          inset 0 0 0 3px var(--select),
+          inset 0 0 12px rgba(255, 255, 255, 0.45);
+      }
+      .cell.move::after {
+        content: "";
+        position: absolute;
+        width: calc(var(--cw) * 0.28);
+        height: calc(var(--cw) * 0.28);
+        border-radius: 50%;
+        background: var(--move);
+      }
+      .cell.attack {
+        box-shadow: inset 0 0 0 3px var(--attack);
+      }
+      .cell img {
+        width: 100%;
+        height: 96%;
+        object-fit: contain;
+        pointer-events: none;
+        position: relative;
+        z-index: 1;
+        transform: scale(
+          var(--pawn-scale)
+        ); /* ★ PAWN SIZE: change --pawn-scale at the top of this CSS */
+        transform-origin: 50% 85%; /* the pawn grows upward, its base stays in its square */
+      }
+      .rank {
+        position: absolute;
+        right: 2px;
+        bottom: 1px;
+        z-index: 2;
+        font-size: max(11px, calc(var(--cw) * 0.26));
+        font-weight: 800;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 6px;
+        padding: 0 4px;
+        line-height: 1.25;
+      }
+
+      /* ---------- Trays with the fallen pawns ----------
+     Header = shield in the player's colour + name + counter; below/next to it the dead pawns. */
+      .tray {
+        display: flex;
+        background: var(--panel);
+        border: 2px solid var(--grid);
+        border-radius: 6px;
+        padding: 6px;
+        gap: 8px;
+        min-width: 0;
+      }
+      .tray.blue {
+        border-color: #3f6fd0;
+      }
+      .tray.red {
+        border-color: #c94a4a;
+      }
+      .tray-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: none;
+      }
+      .tray-head img {
+        width: 26px;
+        height: 30px;
+        object-fit: contain;
+      }
+      .tray-head b {
+        display: block;
+        font-size: 13px;
+      }
+      .tray-head small {
+        opacity: 0.7;
+        font-size: 11px;
+      }
+      .tray-pieces {
+        display: flex;
+        gap: 4px;
+        min-width: 0;
+      }
+      .mini {
+        position: relative;
+        flex: none;
+        width: var(--mw);
+        height: var(--mh);
+      }
+      .mini img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .mini span {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        font-size: 11px;
+        font-weight: 800;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 5px;
+        padding: 0 3px;
+      }
+      body:not(.landscape) .tray {
+        width: 100%;
+        height: 44px;
+        padding: 2px 6px;
+        flex-direction: row;
+        align-items: center;
+      }
+      body:not(.landscape) .tray-pieces {
+        flex: 1;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      } /* one scrolling row */
+      body.landscape .tray {
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+      }
+      body.landscape .tray-pieces {
+        flex-wrap: wrap;
+        align-content: flex-start;
+        overflow-y: auto;
+      }
+
+      /* ---------- Battle animation (pawns drawn above the board) ---------- */
+      #overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .pawn {
+        position: absolute;
+        transition: transform 0.35s ease;
+      } /* outer box = position (moves) */
+      .pawn .body {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          transform 0.45s,
+          opacity 0.45s;
+      }
+      .pawn .body img {
+        width: 95%;
+        height: 92%;
+        object-fit: contain;
+        transform: scale(
+          var(--pawn-scale)
+        ); /* same size as on the board (fight animation) */
+        transform-origin: 50% 85%;
+      }
+      .pawn .body.reveal {
+        animation:
+          flip 0.3s,
+          clash 0.45s 0.3s;
+      } /* turn face-up, then shake */
+      .pawn .body.dead {
+        opacity: 0;
+        transform: scale(0.3) rotate(25deg);
+      } /* loser fades away */
+      .boom {
+        position: absolute;
+        font-size: 34px;
+        animation: boom 0.6s forwards;
+      }
+      @keyframes flip {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+      @keyframes clash {
+        0%,
+        100% {
+          transform: none;
+        }
+        25% {
+          transform: translate(-4px, 2px) scale(1.15);
+        }
+        50% {
+          transform: translate(4px, -2px) scale(1.2);
+        }
+        75% {
+          transform: translate(-3px, 1px) scale(1.15);
+        }
+      }
+      @keyframes boom {
+        from {
+          transform: scale(0.3);
+          opacity: 1;
+        }
+        to {
+          transform: scale(1.6);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Join screen -->
+    <div id="join">
+      <h1>STRATEGO</h1>
+      <input id="room" type="text" value="home" placeholder="Room name" />
+      <label><input id="ai" type="checkbox" /> Play against the computer</label>
+      <button class="primary" onclick="joinGame()">Join</button>
+      <div id="err" style="color: #ff7b7b"></div>
+    </div>
+
+    <!-- Game screen. Left panel / board / right panel; the page code (render) fills them -->
+    <div id="game">
+      <div id="left">
+        <div id="top">
+          <div id="status">
+            <span id="who"></span><span id="statusText"></span>
+          </div>
+          <div id="battle"></div>
+        </div>
+        <div class="tray" id="trayEnemy"></div>
+      </div>
+      <div id="stage">
+        <div id="board"></div>
+        <div id="overlay"></div>
+      </div>
+      <div id="right">
+        <div class="tray" id="trayMine"></div>
+        <div id="bottom"></div>
+      </div>
+    </div>
+
+    <script>
+      // =====================================================================
+      // 1. SETTINGS - numbers you can safely change
+      // =====================================================================
+      const SIZE = 10; // squares per side
+      const TOP = 52,
+        BOTTOM = 60; // portrait: height of the top and bottom bars (px) - keep equal to the CSS
+      const STRIP_H = 44; // portrait: height of each fallen-pawn strip (px) - keep equal to the CSS
+      const SIDE_MIN = 200; // landscape: minimum width of each side panel (px)
+
+      // ★ PAWN SIZE OF THE FALLEN PAWNS (trays). The size on the BOARD is --pawn-scale in the CSS.
+      const MINI_SCALE = 0.7; // wide screen: size of a fallen pawn = this x the size of a board square
+      const MINI_PHONE = [28, 34]; // phone upright: [width, height] in px (the strip is 44px high, keep height <= 36)
+
+      // ★ TEAM COLOURS OF THE SPRITES
+      // In the current busts/ folder the pictures are filed under the OPPOSITE colour (blue_spy.png shows a
+      // red uniform) while the hidden "S" shield is correct. true = the page corrects that for you.
+      // If you replace the busts with a set whose names are right, set this to false.
+      const SWAP_TEAM_SPRITES = true;
+      // Every picture of the game goes through this function: color = "blue"/"red", type = "marshal", "back"...
+      function spriteUrl(color, type) {
+        const other = color === "blue" ? "red" : "blue";
+        const folderColor =
+          SWAP_TEAM_SPRITES && type !== "back" ? other : color;
+        return `busts/${folderColor}_${type}.png`;
+      }
+      const TOTAL = 40; // pawns per player (for the "Fallen 3 / 40" counter)
+      const POLL_MS = 600; // how often we ask the server for news
+      const LABELS = {
+        // number written on each pawn (classic numbering: 1 = strongest)
+        flag: "F",
+        bomb: "B",
+        spy: "S",
+        scout: "9",
+        miner: "8",
+        sergeant: "7",
+        lieutenant: "6",
+        captain: "5",
+        major: "4",
+        colonel: "3",
+        general: "2",
+        marshal: "1",
+      };
+      const ORDER = Object.keys(LABELS); // weakest -> strongest; used to sort the fallen pawns
+
+      // =====================================================================
+      // 2. VARIABLES - what the page remembers
+      // =====================================================================
+      let session = null; // who I am: { room, token, color }
+      let view = null; // the state currently DRAWN (may lag behind during an animation)
+      let latest = null; // the newest state received from the server
+      let selected = null; // the pawn I tapped: [x, y]  (REAL board coordinates)
+      let lastKey = ""; // used to skip redrawing when nothing changed
+      let seenSeq = null; // number of the last fight we already know about
+      let seenMove = null; // number of the last move we already know about (for the move sound)
+      let queue = []; // fights waiting to be animated: [{ battle, view }]
+      let anim = null; // the fight being animated right now (or null)
+      let cw = 40,
+        ch = 60; // size of one square in pixels (set in render)
+      const $ = (id) => document.getElementById(id); // shortcut: $('board')
+
+      // =====================================================================
+      // 2b. SOUND - made with the browser's Web Audio (no sound files needed)
+      //     Sound.move()   a pawn is moved: soft scrape + wooden "tock"
+      //     Sound.clash()  two pawns fight: sword strike, metal ringing, "shing"
+      //     To change how it sounds, edit the numbers (frequency in Hz, duration in seconds, volume 0..1).
+      // =====================================================================
+      const Sound = (() => {
+        let ctx = null; // the audio engine; browsers only allow it after the first tap
+        let on = localStorage.getItem("stratego-sound") !== "off";
+        const VOLUME = 0.7; // ★ master volume, 0 (silent) .. 1 (loud)
+
+        function unlock() {
+          if (!ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) ctx = new AudioCtx();
+          }
+          if (ctx && ctx.state === "suspended") ctx.resume();
+        }
+        // A short burst of noise through a filter (used for clicks and scrapes).
+        function noise(start, duration, filterType, freq, gain, freqEnd) {
+          const length = Math.floor(ctx.sampleRate * duration);
+          const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          const filter = ctx.createBiquadFilter();
+          filter.type = filterType;
+          filter.frequency.setValueAtTime(freq, start);
+          if (freqEnd)
+            filter.frequency.exponentialRampToValueAtTime(
+              freqEnd,
+              start + duration,
+            );
+          const volume = ctx.createGain();
+          volume.gain.setValueAtTime(gain * VOLUME, start);
+          volume.gain.exponentialRampToValueAtTime(0.001, start + duration);
+          source.connect(filter);
+          filter.connect(volume);
+          volume.connect(ctx.destination);
+          source.start(start);
+        }
+        // A pure tone that fades out (used for thumps and for the ringing of the metal).
+        function tone(start, freq, duration, gain, freqEnd) {
+          const osc = ctx.createOscillator();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, start);
+          if (freqEnd)
+            osc.frequency.exponentialRampToValueAtTime(
+              freqEnd,
+              start + duration,
+            );
+          const volume = ctx.createGain();
+          volume.gain.setValueAtTime(gain * VOLUME, start);
+          volume.gain.exponentialRampToValueAtTime(0.001, start + duration);
+          osc.connect(volume);
+          volume.connect(ctx.destination);
+          osc.start(start);
+          osc.stop(start + duration + 0.05);
+        }
+        // Ringing metal = several high tones that are not multiples of each other.
+        function ring(start, gain) {
+          [1180, 2790, 4260, 5870].forEach((freq, i) =>
+            tone(start, freq, 0.9 - i * 0.15, gain / (i + 1)),
+          );
+        }
+        return {
+          unlock,
+          get enabled() {
+            return on;
+          },
+          toggle() {
+            on = !on;
+            localStorage.setItem("stratego-sound", on ? "on" : "off");
+            if (on) unlock();
+          },
+          move() {
+            if (!on || !ctx) return;
+            const t = ctx.currentTime;
+            noise(t, 0.16, "bandpass", 500, 0.25, 900); // the base slides on the board
+            tone(t + 0.15, 170, 0.12, 0.7, 70); // landing thump
+            noise(t + 0.15, 0.05, "lowpass", 1500, 0.4); // wood click
+          },
+          clash() {
+            if (!on || !ctx) return;
+            const t = ctx.currentTime;
+            const v = 0.92 + Math.random() * 0.16; // tiny random pitch change so every fight sounds a bit different
+
+            // 1. First impact: two steel blades meeting, slightly out of tune with each other
+            noise(t, 0.03, "highpass", 3000, 0.8); // steel "tick"
+            metalHit(t, 0.55, 520 * v); // heavy blade
+            metalHit(t, 0.3, 1130 * v); // second blade (the two tones beat against each other)
+            thud(t, 0.5); // shield / armour takes the weight
+
+            // 2. Blades slide against each other
+            noise(t + 0.06, 0.22, "bandpass", 2500, 0.25, 7500);
+
+            // 3. Armour and chain mail rattling: a handful of tiny random clinks
+            for (let i = 0; i < 6; i++) {
+              const at = t + 0.08 + Math.random() * 0.25;
+              tone(at, 2000 + Math.random() * 3000, 0.05, 0.1);
+              noise(at, 0.02, "highpass", 4000, 0.15);
+            }
+
+            // 4. Second and third strikes, each one heavier
+            metalHit(t + 0.14, 0.4, 680 * v);
+            noise(t + 0.14, 0.03, "highpass", 3000, 0.5);
+            metalHit(t + 0.24, 0.45, 590 * v);
+            thud(t + 0.24, 0.7);
+
+            // 5. War cries: the attacker shouts first, the defender answers
+            grunt(t + 0.02, 150 * v, 0.35, 1.0);
+            grunt(t + 0.24, 110 * v, 0.3, 1.1);
+
+            // 6. The crowd roars
+            crowd(t + 0.15, 1.1, 0.1);
+          },
+        };
+      })();
+
+      // =====================================================================
+      // 3. TALKING TO THE SERVER
+      // =====================================================================
+      // Sends a request and returns the JSON answer. Throws an Error on failure.
+      async function api(path, body) {
+        const options = body
+          ? {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : undefined;
+        const res = await fetch(path, options);
+        const data = await res.json();
+        if (!res.ok) {
+          const e = new Error(data.error || res.status);
+          e.status = res.status;
+          throw e;
+        }
+        return data;
+      }
+
+      // "Join" button: enter a room, remember who we are, start the game screen.
+      async function joinGame() {
+        try {
+          const room = $("room").value.trim() || "home";
+          const r = await api("/api/join", { room, ai: $("ai").checked });
+          session = { room, token: r.token, color: r.color };
+          sessionStorage.setItem("stratego", JSON.stringify(session)); // survives a page refresh
+          startGame();
+        } catch (e) {
+          $("err").textContent = e.message;
+        }
+      }
+
+      function startGame() {
+        $("join").style.display = "none";
+        $("game").style.display = "flex";
+        poll();
+        setInterval(poll, POLL_MS);
+      }
+
+      // Ask the server for the current state (runs every POLL_MS).
+      async function poll() {
+        try {
+          receive(
+            await api(
+              `/api/state?room=${encodeURIComponent(session.room)}&token=${session.token}`,
+            ),
+          );
+        } catch (e) {
+          if (e.status === 404) {
+            sessionStorage.clear();
+            location.reload();
+          } // server restarted
+          else $("statusText").textContent = "Connection lost… retrying";
+        }
+      }
+
+      // Send my action (SWAP / RESHUFFLE / READY / MOVE / NEW_GAME). The answer is the new state.
+      async function send(action) {
+        try {
+          receive(
+            await api("/api/action", {
+              room: session.room,
+              token: session.token,
+              action,
+            }),
+          );
+        } catch (e) {}
+      }
+
+      // =====================================================================
+      // 4. RECEIVING A NEW STATE
+      //    If the server says a new fight happened, we do NOT draw the new board
+      //    right away: we queue the fight, play its animation, and only then show
+      //    the board (where the surviving pawns are hidden again).
+      // =====================================================================
+      function receive(v) {
+        latest = v;
+        const moveSeq = v.move_seq || 0;
+        if (seenSeq === null || v.battle_seq < seenSeq) seenSeq = v.battle_seq; // first load / new game: no animation
+        if (seenMove === null || moveSeq < seenMove) seenMove = moveSeq;
+        const isFight = v.battle_seq > seenSeq;
+        if (moveSeq > seenMove) {
+          seenMove = moveSeq;
+          if (!isFight) Sound.move(); // a plain move (fights play their own sounds in playBattle)
+        }
+        if (isFight) {
+          queue.push({ battle: v.last_battle, view: v });
+          seenSeq = v.battle_seq;
+        }
+        if (!anim) showNext();
+      }
+
+      // Called when nothing is animating: start the next queued fight, or just draw the newest state.
+      function showNext() {
+        if (queue.length) {
+          const item = queue.shift();
+          view = item.view;
+          playBattle(item.battle);
+        } else {
+          view = latest;
+          render();
+        }
+      }
+
+      // =====================================================================
+      // 5. TAPPING THE BOARD  (x, y are REAL board coordinates)
+      // =====================================================================
+      function onCell(x, y) {
+        if (!view || anim) return; // ignore taps during an animation
+        const me = session.color,
+          p = view.board[y][x];
+
+        if (view.phase === "setup") {
+          // SETUP: tap two of my pawns to swap them
+          if (view.ready[me]) return;
+          if (!p || p.color !== me) {
+            selected = null;
+            return render();
+          } // tapped something else: cancel
+          if (!selected) {
+            selected = [x, y];
+            return render();
+          } // first tap: select
+          if (selected[0] !== x || selected[1] !== y)
+            send({ type: "SWAP", from: selected, to: [x, y] });
+          selected = null; // second tap: swap done
+          return render();
+        }
+
+        if (view.phase === "play" && view.turn === me) {
+          // PLAY: tap my pawn, then a highlighted square
+          if (p && p.color === me) {
+            selected = view.moves[`${x},${y}`] ? [x, y] : null;
+            return render();
+          }
+          if (
+            selected &&
+            targetsOf(selected).some(([tx, ty]) => tx === x && ty === y)
+          )
+            send({ type: "MOVE", from: selected, to: [x, y] });
+          selected = null;
+          render();
+        }
+      }
+      // Squares the selected pawn can go to (the server computed them for us).
+      const targetsOf = (sel) => view.moves[`${sel[0]},${sel[1]}`] || [];
+
+      // =====================================================================
+      // 6. BOARD ORIENTATION
+      //    Red sees the board turned upside-down so every player sits at the bottom.
+      //    "Real" coordinates = what the server uses. "Display" = where it is drawn.
+      // =====================================================================
+      const flipped = () => session.color === "red";
+      const toDisplay = (x, y) =>
+        flipped() ? [SIZE - 1 - x, SIZE - 1 - y] : [x, y];
+      // Pixel position (inside the board) of the top-left corner of a real square.
+      function cellPos(x, y) {
+        const [dx, dy] = toDisplay(x, y);
+        return { left: dx * cw, top: dy * ch };
+      }
+
+      // =====================================================================
+      // 7. THE FIGHT ANIMATION  (timeline in milliseconds)
+      //      0     both pawns shown face-down on their squares
+      //      100   attacker slides next to the defender
+      //      550   both flip face-up (number visible) and clash
+      //      1350  loser fades out; if the attacker won it steps onto the square
+      //      1900  animation over: board redrawn, survivors face-down again
+      // =====================================================================
+      const after = (ms, fn) => setTimeout(fn, ms);
+      const isLake = (x, y) =>
+        [
+          [2, 4],
+          [3, 4],
+          [2, 5],
+          [3, 5],
+          [6, 4],
+          [7, 4],
+          [6, 5],
+          [7, 5],
+        ].some(([a, b]) => a === x && b === y);
+
+      // Creates a pawn picture inside the overlay, face-down, at a given position.
+      function makePawn(piece, pos) {
+        const el = document.createElement("div");
+        el.className = "pawn";
+        el.style.cssText = `left:${pos.left}px;top:${pos.top}px;width:${cw}px;height:${ch}px`;
+        el.innerHTML = `<div class="body"><img src="${spriteUrl(piece.color === "blue" ? "red" : "blue", "back")}"><span class="rank"></span></div>`;
+        $("overlay").appendChild(el);
+        return el;
+      }
+      // Turns a pawn picture face-up and writes its number.
+      function faceUp(el, piece) {
+        const body = el.firstChild;
+        body.querySelector("img").src = spriteUrl(piece.color, piece.type);
+        body.querySelector(".rank").textContent = LABELS[piece.type];
+        body.classList.add("reveal");
+      }
+      // Pawns that die in a fight.
+      function losers(b) {
+        return b.result === "attacker"
+          ? [b.defender]
+          : b.result === "defender"
+            ? [b.attacker]
+            : [b.attacker, b.defender];
+      }
+
+      function playBattle(b) {
+        anim = b;
+        selected = null;
+        render(true); // draws the board with the two squares emptied
+        const from = cellPos(...b.from),
+          to = cellPos(...b.to);
+        const A = makePawn(b.attacker, from),
+          D = makePawn(b.defender, to);
+        const sx = Math.sign(to.left - from.left),
+          sy = Math.sign(to.top - from.top); // direction of the attack on screen
+        const slide = (el, left, top) => {
+          el.style.transform = `translate(${left - from.left}px, ${top - from.top}px)`;
+        };
+
+        after(100, () => {
+          Sound.move(); // the attacker slides towards the defender
+          slide(A, to.left - sx * cw * 0.55, to.top - sy * ch * 0.55);
+        }); // approach
+        after(550, () => {
+          // reveal + clash
+          Sound.clash(); // swords hit each other
+          faceUp(A, b.attacker);
+          faceUp(D, b.defender);
+          const boom = document.createElement("div");
+          boom.className = "boom";
+          boom.textContent = "💥";
+          boom.style.left = to.left + cw / 2 - 17 + "px";
+          boom.style.top = to.top + ch / 2 - 17 + "px";
+          $("overlay").appendChild(boom);
+        });
+        after(1350, () => {
+          // loser disappears
+          if (b.result !== "defender") D.firstChild.classList.add("dead");
+          if (b.result !== "attacker") A.firstChild.classList.add("dead");
+          if (b.result === "attacker") slide(A, to.left, to.top); // winner takes the square
+        });
+        after(1900, () => {
+          $("overlay").innerHTML = "";
+          anim = null;
+          showNext();
+        });
+      }
+
+      // =====================================================================
+      // 8. DRAWING EVERYTHING
+      // =====================================================================
+      function statusText() {
+        const me = session.color;
+        if (!view.opponent_joined)
+          return `Waiting for opponent… tell them room "${session.room}"`;
+        if (view.phase === "setup")
+          return view.ready[me]
+            ? "Waiting for opponent to be ready…"
+            : "Tap two of your pieces to swap them, then press Ready";
+        if (view.phase === "over")
+          return view.winner === me ? "🏆 Victory!" : "💀 Defeat";
+        return view.turn === me ? "Your move" : "Opponent's move…";
+      }
+
+      // Dead pawns of a colour. During an animation the pawn that is dying right now is not listed yet.
+      function deadList(color) {
+        const list = [...view.dead[color]];
+        if (anim)
+          for (const p of losers(anim))
+            if (p.color === color) list.splice(list.lastIndexOf(p.type), 1);
+        return list.sort((a, b) => ORDER.indexOf(b) - ORDER.indexOf(a)); // strongest first
+      }
+      // Fills one tray: header (shield of that colour, "Blue · You", "Fallen 3 / 40") + the fallen pawns with numbers.
+      function drawTray(el, color, who) {
+        const list = deadList(color);
+        const name = color[0].toUpperCase() + color.slice(1);
+        el.className = `tray ${color}`;
+        el.innerHTML =
+          `<div class="tray-head"><img src="${spriteUrl(color, "back")}"><div><b>${name} · ${who}</b><small>Fallen ${list.length} / ${TOTAL}</small></div></div>` +
+          `<div class="tray-pieces">${list
+            .map(
+              (type) =>
+                `<div class="mini"><img src="${spriteUrl(color, type)}"><span>${LABELS[type]}</span></div>`,
+            )
+            .join("")}</div>`;
+      }
+
+      // Redraws the whole screen from `view`. Skips the work if nothing changed.
+      function render(force) {
+        const key = JSON.stringify([
+          view,
+          selected,
+          innerWidth,
+          viewportHeight(),
+          anim && anim.seq,
+        ]);
+        if (key === lastKey && !force) return;
+        lastKey = key;
+        const me = session.color,
+          enemy = me === "red" ? "blue" : "red";
+
+        // --- sizes: the board fills the free space; squares are taller than wide ---
+        // Wide screen (PC): the whole height goes to the board, info lives in the side panels.
+        // Phone upright: the board is as wide as the screen; strips above/below hold the fallen pawns.
+        const H = viewportHeight(); // the REAL visible height (works with phone address bars)
+        document.documentElement.style.setProperty("--app-h", H + "px");
+        const cs = getComputedStyle($("game")); // space kept free for the notch / home bar
+        const safe = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+        const landscape = innerWidth > H * 1.1;
+        document.body.classList.toggle("landscape", landscape);
+        const availW = landscape ? innerWidth - 2 * SIDE_MIN - 28 : innerWidth;
+        const availH = landscape
+          ? H - safe - 16
+          : H - safe - TOP - BOTTOM - 2 * STRIP_H;
+        const cw0 = Math.floor(availW / SIZE);
+        ch = Math.floor(Math.min(availH / SIZE, cw0 * 1.8)); // square height
+        cw = Math.min(cw0, Math.floor(ch * (landscape ? 0.85 : 0.75))); // square width
+        const mini = landscape
+          ? [
+              Math.max(30, Math.floor(cw * MINI_SCALE)),
+              Math.max(36, Math.floor(ch * MINI_SCALE)),
+            ]
+          : MINI_PHONE; // fallen pawn size (see ★ PAWN SIZE in the settings)
+        const root = document.documentElement.style;
+        root.setProperty("--cw", cw + "px");
+        root.setProperty("--ch", ch + "px");
+        root.setProperty("--mw", mini[0] + "px");
+        root.setProperty("--mh", mini[1] + "px");
+
+        // --- top bar: status + result of the last fight (with numbers) ---
+        $("who").className = "badge " + me;
+        $("who").textContent = me.toUpperCase(); // which colour I am
+        $("statusText").textContent = statusText();
+        const b = view.last_battle;
+        const side = (p) =>
+          `<img src="${spriteUrl(p.color, p.type)}"><b>${LABELS[p.type]}</b>`;
+        $("battle").innerHTML = b
+          ? `${side(b.attacker)} <span>${b.result === "attacker" ? "⚔️ wins" : b.result === "defender" ? "🛡 loses" : "💥 both fall"}</span> ${side(b.defender)}`
+          : "";
+
+        // --- dead pawn trays ---
+        drawTray($("trayEnemy"), enemy, "Opponent");
+        drawTray($("trayMine"), me, "You");
+
+        // --- the board ---
+        const targets = selected ? targetsOf(selected) : [];
+        const board = $("board");
+        board.innerHTML = "";
+        for (let dy = 0; dy < SIZE; dy++)
+          for (let dx = 0; dx < SIZE; dx++) {
+            const [x, y] = flipped()
+              ? [SIZE - 1 - dx, SIZE - 1 - dy]
+              : [dx, dy]; // display -> real
+            const inFight =
+              anim &&
+              ((x === anim.from[0] && y === anim.from[1]) ||
+                (x === anim.to[0] && y === anim.to[1]));
+            const p = inFight ? null : view.board[y][x]; // fighting squares are drawn by the overlay
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            if (isLake(x, y))
+              cell.classList.add("lake"); // blocked water
+            else {
+              if (p)
+                cell.classList.add(p.color); // square holding a pawn
+              else if ((x + y) % 2) cell.classList.add("alt"); // empty square: checkerboard tone
+              if (selected && selected[0] === x && selected[1] === y)
+                cell.classList.add("sel"); // the pawn I picked
+              if (targets.some(([tx, ty]) => tx === x && ty === y))
+                cell.classList.add(p ? "attack" : "move"); // where it can go
+            }
+            if (p) {
+              cell.innerHTML = `<img src="${spriteUrl(p.color, p.hidden ? "back" : p.type)}">`; // hidden = the "S" shield
+              if (p.color === me && !p.hidden)
+                cell.innerHTML += `<span class="rank">${LABELS[p.type]}</span>`; // my own numbers
+            }
+            cell.onclick = () => onCell(x, y);
+            board.appendChild(cell);
+          }
+
+        // --- bottom buttons depend on the phase ---
+        const btn = (label, js, primary) =>
+          `<button class="${primary ? "primary" : ""}" onclick="${js}">${label}</button>`;
+        $("bottom").innerHTML =
+          view.phase === "setup" && !view.ready[me]
+            ? btn("Shuffle", "send({type:'RESHUFFLE'})") +
+              btn("Ready", "selected=null;send({type:'READY'})", true)
+            : view.phase === "setup"
+              ? ""
+              : btn(
+                  "New game",
+                  "selected=null;send({type:'NEW_GAME'})",
+                  view.phase === "over",
+                );
+        // small buttons: sound on/off and full screen (the full-screen button only shows if the browser supports it)
+        $("bottom").innerHTML +=
+          `<button class="icon-btn" onclick="toggleSound()">${Sound.enabled ? "🔊" : "🔇"}</button>` +
+          (fullscreenSupported()
+            ? `<button class="icon-btn" onclick="toggleFullscreen()">⛶</button>`
+            : "");
+      }
+
+      function toggleSound() {
+        Sound.toggle();
+        render(true);
+      }
+      function fullscreenSupported() {
+        return !!(
+          document.fullscreenEnabled || document.webkitFullscreenEnabled
+        );
+      }
+      function toggleFullscreen() {
+        const el = document.documentElement;
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          (document.exitFullscreen || document.webkitExitFullscreen).call(
+            document,
+          );
+        } else {
+          (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+        }
+      }
+      // Visible height of the page in pixels (visualViewport is the most accurate on phones).
+      function viewportHeight() {
+        return window.visualViewport
+          ? Math.floor(window.visualViewport.height)
+          : innerHeight;
+      }
+
+      addEventListener("resize", () => render(true));
+      if (window.visualViewport)
+        visualViewport.addEventListener("resize", () => render(true));
+      addEventListener("orientationchange", () =>
+        setTimeout(() => render(true), 250),
+      );
+      // Browsers only allow sound after the user touched the page: unlock it on the first tap.
+      ["pointerdown", "touchend", "click"].forEach((name) =>
+        addEventListener(name, () => Sound.unlock(), { passive: true }),
+      );
+
+      // =====================================================================
+      // 9. START: if the page was refreshed, go back to the game we were in
+      // =====================================================================
+      const saved = sessionStorage.getItem("stratego");
+      if (saved) {
+        session = JSON.parse(saved);
+        startGame();
+      }
+    </script>
+  </body>
+</html>
