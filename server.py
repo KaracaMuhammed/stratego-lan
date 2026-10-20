@@ -11,6 +11,9 @@ HOW THE GAME WORKS (big picture)
   * The BROWSER (web/index.html) asks the server "what is the state?" every
     0.6 s and draws it. It never receives the enemy's hidden pieces.
 
+LEAVING A GAME: nobody can drop out of a running game alone. One player asks, the other must accept
+(see room_action). When the game is over, a player can simply go back to the home screen.
+
 THE FILE IS SPLIT IN 4 PARTS - search for the "=====" lines:
   1. RULES     board, pieces, moves, combat      <- edit to change the rules
   2. COMPUTER  the AI opponent                   <- edit to make it smarter
@@ -85,6 +88,7 @@ def new_state():
       last_battle   details of the latest fight (the web page animates it)
       battle_seq    counts fights; the page plays an animation when it grows
       move_seq      counts every move (fights included); the page plays the move sound when it grows
+      last_move     {from, to, color, fight} of the latest move: the page draws an arrow for it
       dead          pawn types each colour has lost, shown in the side trays
       known         pawn id -> type, ONLY used by the computer's memory"""
     board = [[None] * SIZE for _ in range(SIZE)]
@@ -92,7 +96,7 @@ def new_state():
     place_army(board, "red")
     return {"board": board, "phase": "setup", "turn": "blue",
             "ready": {"blue": False, "red": False}, "winner": None,
-            "last_battle": None, "battle_seq": 0, "move_seq": 0,
+            "last_battle": None, "battle_seq": 0, "move_seq": 0, "last_move": None,
             "dead": {"blue": [], "red": []}, "known": {}}
 
 
@@ -181,6 +185,7 @@ def apply_action(state, player, action):
                 return "Illegal move"
             defender = board[ty][tx]
             state["move_seq"] += 1
+            state["last_move"] = {"from": [fx, fy], "to": [tx, ty], "color": player, "fight": defender is not None}
             board[fy][fx] = None
             if defender is None:                          # plain move
                 board[ty][tx] = piece
@@ -230,7 +235,10 @@ def view_for(room, player):
     return {"board": board, "phase": s["phase"], "turn": s["turn"], "ready": s["ready"],
             "winner": s["winner"], "last_battle": s["last_battle"], "battle_seq": s["battle_seq"], "move_seq": s["move_seq"],
             "dead": s["dead"], "moves": moves, "you": player,
-            "opponent_joined": room["tokens"]["red"] is not None, "vs_ai": room["ai"]}
+            "opponent_joined": room["tokens"][other(player)] is not None, "vs_ai": room["ai"],
+            "last_move": s["last_move"], "leave": room["leave"], "closed": room["closed"],
+            # a notice (toast message) is only shown to the player it is meant for
+            "notice": {"seq": room["notice"]["seq"], "text": room["notice"]["text"] if room["notice"]["to"] == player else ""}}
 
 
 # =====================================================================
@@ -289,21 +297,34 @@ ROOMS = {}                # room name -> {"state", "tokens": {"blue","red"}, "ai
                           # a token is a secret code that proves who you are
 
 
+def clean_room(raw):
+    """Room IDs are 6 letters/digits, always upper case (the page makes them; the server is tolerant)."""
+    return str(raw or "").strip().upper()[:12]
+
+
+def new_room(vs_ai):
+    """tokens: secret code of each seat (None = free seat)
+    leave:  {"by": colour} while someone has asked to leave and waits for the answer
+    notice: a short message for one player (the page shows it as a toast)
+    closed: True when both players agreed to leave"""
+    room = {"state": new_state(), "tokens": {"blue": None, "red": None}, "ai": vs_ai,
+            "leave": None, "notice": {"seq": 0, "text": "", "to": None}, "closed": False, "seen_closed": set()}
+    if vs_ai:
+        room["tokens"]["red"] = "computer"
+        room["state"]["ready"]["red"] = True               # the computer is always ready
+    return room
+
+
 def join_room(name, vs_ai):
-    """First player in a room is blue, the second is red. Returns (token, color)
+    """Takes the first free seat (blue, then red). Returns (token, color)
     or raises ValueError(message) when the room cannot be joined."""
     room = ROOMS.get(name)
-    if room is None:                                       # create the room
-        room = ROOMS[name] = {"state": new_state(), "tokens": {"blue": None, "red": None}, "ai": vs_ai}
-        color = "blue"
-        if vs_ai:
-            room["tokens"]["red"] = "computer"
-            room["state"]["ready"]["red"] = True           # the computer is always ready
+    if room is None or room["closed"]:                     # new room (or an old one both players left)
+        room = ROOMS[name] = new_room(vs_ai)
     elif room["ai"]:
         raise ValueError("That room is a game against the computer")
-    elif room["tokens"]["red"] is None:
-        color = "red"
-    else:
+    color = next((c for c in ("blue", "red") if room["tokens"][c] is None), None)
+    if color is None:
         raise ValueError("Room is full")
     token = secrets.token_hex(8)
     room["tokens"][color] = token
@@ -318,8 +339,55 @@ def find_player(room, token):
     return None
 
 
+def notify(room, text, to):
+    """Sends a short message to one player (shown once as a toast by the page)."""
+    room["notice"] = {"seq": room["notice"]["seq"] + 1, "text": text, "to": to}
+
+
+def room_action(name, room, player, action):
+    """Actions about the ROOM, not about the board. Returns True if `action` was one of them.
+         LEAVE_REQUEST  I want to leave. The opponent has to accept (nobody to ask = I just leave)
+         LEAVE_CANCEL   I changed my mind
+         LEAVE_ACCEPT   the opponent asked to leave and I agree -> the room is closed for both
+         LEAVE_DECLINE  I refuse -> the opponent gets a message
+         LEAVE_NOW      go back to the home screen (only when the game is over, or alone / vs computer)"""
+    kind = action.get("type")
+    opponent = other(player)
+    alone = room["ai"] or room["tokens"][opponent] is None
+    leave = room["leave"]
+    if kind == "LEAVE_REQUEST":
+        if alone:
+            ROOMS.pop(name, None)
+        elif leave is None:
+            room["leave"] = {"by": player}
+        elif leave["by"] == opponent:                      # both asked at the same time = both agree
+            room["closed"], room["leave"] = True, None
+    elif kind == "LEAVE_CANCEL":
+        if leave and leave["by"] == player:
+            room["leave"] = None
+    elif kind == "LEAVE_ACCEPT":
+        if leave and leave["by"] == opponent:
+            room["closed"], room["leave"] = True, None
+    elif kind == "LEAVE_DECLINE":
+        if leave and leave["by"] == opponent:
+            room["leave"] = None
+            notify(room, "Your opponent declined to leave the game.", opponent)
+    elif kind == "LEAVE_NOW":
+        if room["state"]["phase"] == "over" or alone:
+            room["tokens"][player] = None
+            room["leave"] = None
+            if alone or all(t is None for t in room["tokens"].values()):
+                ROOMS.pop(name, None)
+            else:
+                notify(room, "Your opponent went back to the home screen.", opponent)
+    else:
+        return False
+    return True
+
+
 def reset_game(room):
     """New game in the same room with the same players."""
+    room["leave"] = None
     room["state"] = new_state()
     if room["ai"]:
         room["state"]["ready"]["red"] = True
@@ -348,41 +416,57 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def deliver(self, name, room, player):
+        """The answer for a player. When a room is closed, forget it once both players have seen that."""
+        view = view_for(room, player)
+        if room["closed"]:
+            room["seen_closed"].add(player)
+            if len(room["seen_closed"]) >= 2:
+                ROOMS.pop(name, None)
+        return view
+
     def do_GET(self):
         url = urlparse(self.path)
         if url.path != "/api/state":
             return super().do_GET()                        # serve a normal file
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
+        name = clean_room(q.get("room"))
         with LOCK:
-            room = ROOMS.get(q.get("room"))
+            room = ROOMS.get(name)
             player = find_player(room, q.get("token"))
             if not player:
                 return self.send_json({"error": "Unknown game - rejoin"}, 404)
-            self.send_json(view_for(room, player))
+            self.send_json(self.deliver(name, room, player))
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
         path = urlparse(self.path).path
+        name = clean_room(body.get("room"))
         with LOCK:
             if path == "/api/join":
+                if not name:
+                    return self.send_json({"error": "Room ID is missing"}, 400)
                 try:
-                    name = str(body.get("room", "home")).strip() or "home"
                     token, color = join_room(name, bool(body.get("ai")))
                 except ValueError as e:
                     return self.send_json({"error": str(e)}, 400)
                 return self.send_json({"token": token, "color": color})
             if path == "/api/action":
-                room = ROOMS.get(body.get("room"))
+                room = ROOMS.get(name)
                 player = find_player(room, body.get("token"))
                 if not player:
                     return self.send_json({"error": "Unknown game - rejoin"}, 404)
                 action = body.get("action", {})
-                if action.get("type") == "NEW_GAME":
-                    reset_game(room)
-                else:
-                    apply_action(room["state"], player, action)
-                schedule_ai(room)
-                return self.send_json(view_for(room, player))
+                if not room_action(name, room, player, action):       # not about leaving: a game action
+                    if action.get("type") == "NEW_GAME":
+                        if room["state"]["phase"] == "over":          # "Play again" only after a finished game
+                            reset_game(room)
+                    else:
+                        apply_action(room["state"], player, action)
+                    schedule_ai(room)
+                if name not in ROOMS:                                  # the player left and the room is gone
+                    return self.send_json({"left": True})
+                return self.send_json(self.deliver(name, room, player))
         self.send_json({"error": "Not found"}, 404)
 
 

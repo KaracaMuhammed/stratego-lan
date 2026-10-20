@@ -339,7 +339,7 @@
       }
       body:not(.landscape) .tray {
         width: 100%;
-        height: 44px;
+        height: 50px;
         padding: 2px 6px;
         flex-direction: row;
         align-items: center;
@@ -437,16 +437,264 @@
           opacity: 0;
         }
       }
+
+      /* =====================================================================
+         ★ ADDED RULES (they come last, so they win over the older rules above)
+         ===================================================================== */
+
+      /* ---------- Buttons: clearly clickable (not grey / disabled looking) ---------- */
+      button {
+        background: #3a3f2b;
+        color: #f1ecd2;
+        border: 1px solid #7b8255;
+        border-radius: 6px;
+        box-shadow:
+          0 2px 0 #1b1e12,
+          0 4px 10px rgba(0, 0, 0, 0.35);
+        transition:
+          transform 0.08s,
+          filter 0.15s,
+          box-shadow 0.15s;
+      }
+      button:hover {
+        filter: brightness(1.25);
+      }
+      button:active {
+        transform: translateY(2px);
+        box-shadow: 0 0 0 #1b1e12;
+      }
+      button.primary {
+        /* the main action: bright brass with dark text */
+        background: var(--brass);
+        color: #1a1a1a;
+        border-color: #e6d594;
+        box-shadow:
+          0 2px 0 #7a6a35,
+          0 0 14px rgba(194, 173, 106, 0.35);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      #bottom {
+        gap: 8px;
+      }
+      #bottom button {
+        padding: 10px 14px;
+        font-size: 12px;
+        letter-spacing: 1px;
+      }
+      #bottom .icon-btn {
+        padding: 10px 12px;
+        font-size: 16px;
+      }
+
+      /* ---------- Join screen: room ID ---------- */
+      .id-row {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+      }
+      #room {
+        width: 13ch;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 6px;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .hint {
+        font-size: 12px;
+        opacity: 0.65;
+        max-width: 300px;
+        text-align: center;
+      }
+      #info {
+        color: var(--brass);
+        min-height: 1em;
+        text-align: center;
+        max-width: 300px;
+      }
+
+      /* ---------- Fallen pawns: ONE row, scrolls sideways only (never up/down) ---------- */
+      .tray-pieces,
+      body:not(.landscape) .tray-pieces,
+      body.landscape .tray-pieces {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        touch-action: pan-x;
+        align-items: center;
+        scrollbar-width: thin;
+      }
+      body:not(.landscape) .tray-pieces {
+        flex: 1;
+        min-width: 0;
+      }
+      body.landscape .tray-pieces {
+        flex: none;
+        width: 100%;
+      }
+
+      /* ---------- Fight view: the two soldiers are shown clearly on the field ---------- */
+      #overlay {
+        z-index: 20;
+        transition: background 0.2s;
+      } /* always above every pawn of the board */
+      #overlay.dim {
+        background: rgba(0, 0, 0, 0.5);
+      } /* darkens the board during a fight */
+      .pawn {
+        z-index: 21;
+      }
+      .pawn.big .body img {
+        transform: scale(calc(var(--pawn-scale) * 1.15));
+      } /* ★ fighters are a bit bigger */
+      .pawn .tag {
+        display: none;
+        position: absolute;
+        left: 50%;
+        bottom: -6px;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        font-size: max(11px, calc(var(--cw) * 0.3));
+        font-weight: 800;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid #ffb000;
+        padding: 1px 7px;
+        border-radius: 8px;
+        z-index: 3;
+      } /* "1 · Marshal" */
+
+      /* ---------- Marks drawn on the board until the next move: arrow + the two soldiers of the last fight ---------- */
+      #marks {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 15;
+      }
+      .fight-badge {
+        position: absolute;
+        opacity: 0.8;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid #db9600;
+        border-radius: 10px;
+      }
+      .fight-badge .f {
+        position: relative;
+      }
+      .fight-badge .f img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .fight-badge .f.dead img {
+        filter: grayscale(1) brightness(0.55);
+      } /* the soldier that died */
+      .fight-badge .f.dead::after {
+        /* red cross over the soldier that died */
+        content: "✖";
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ff4a3d;
+        font-size: 28px;
+        font-weight: 900;
+        text-shadow: 0 0 4px #000;
+      }
+      .fight-badge .num {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        font-size: 12px;
+        font-weight: 800;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 6px;
+        padding: 0 4px;
+      }
+      .fight-badge .vs {
+        font-size: 18px;
+      }
+
+      /* ---------- Leave game window + toast message ---------- */
+      #modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: 100;
+      }
+      #modal .box {
+        background: var(--panel);
+        border: 1px solid var(--grid);
+        border-radius: 10px;
+        padding: 20px;
+        max-width: 340px;
+        width: 88%;
+        text-align: center;
+      }
+      #modal p {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.4;
+      }
+      #modal .actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 16px;
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        top: 12px;
+        transform: translateX(-50%);
+        display: none;
+        z-index: 110;
+        max-width: 90%;
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid var(--brass);
+        border-radius: 8px;
+        padding: 8px 14px;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
     <!-- Join screen -->
     <div id="join">
       <h1>STRATEGO</h1>
-      <input id="room" type="text" value="home" placeholder="Room name" />
+      <div class="id-row">
+        <input
+          id="room"
+          type="text"
+          maxlength="6"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+          placeholder="ROOM ID"
+          oninput="cleanRoomId()"
+        />
+        <button onclick="fillRoomId()">Generate ID</button>
+      </div>
+      <div class="hint">
+        Both players must use the same 6-character room ID. One generates it and
+        shares it.
+      </div>
       <label><input id="ai" type="checkbox" /> Play against the computer</label>
-      <button class="primary" onclick="joinGame()">Join</button>
+      <button class="primary" onclick="joinGame()">Join game</button>
       <div id="err" style="color: #ff7b7b"></div>
+      <div id="info"></div>
     </div>
 
     <!-- Game screen. Left panel / board / right panel; the page code (render) fills them -->
@@ -462,6 +710,7 @@
       </div>
       <div id="stage">
         <div id="board"></div>
+        <div id="marks"></div>
         <div id="overlay"></div>
       </div>
       <div id="right">
@@ -469,6 +718,9 @@
         <div id="bottom"></div>
       </div>
     </div>
+
+    <div id="modal"></div>
+    <div id="toast"></div>
 
     <script>
       // =====================================================================
@@ -484,19 +736,38 @@
       const MINI_SCALE = 0.7; // wide screen: size of a fallen pawn = this x the size of a board square
       const MINI_PHONE = [28, 34]; // phone upright: [width, height] in px (the strip is 44px high, keep height <= 36)
 
-      // ★ TEAM COLOURS OF THE SPRITES
-      // In the current busts/ folder the pictures are filed under the OPPOSITE colour (blue_spy.png shows a
-      // red uniform) while the hidden "S" shield is correct. true = the page corrects that for you.
-      // If you replace the busts with a set whose names are right, set this to false.
-      const SWAP_TEAM_SPRITES = true;
+      // ★ SPRITES: which picture is shown for which pawn
+      // The files in busts/ are named by the colour of the uniform: blue_marshal.png = blue uniform,
+      // red_marshal.png = red uniform. blue_back.png / red_back.png are the hidden "S" shields.
+      const SAME_SPRITES_FOR_BOTH = false; // true = both sides wear the same uniform (see SHARED_UNIFORM)
+      const SHARED_UNIFORM = "blue"; // only used when the line above is true: "blue" or "red"
+      const SWAP_TEAM_SPRITES = false; // true ONLY if your files are named the opposite way (red_spy.png shows a blue uniform)
       // Every picture of the game goes through this function: color = "blue"/"red", type = "marshal", "back"...
       function spriteUrl(color, type) {
-        const other = color === "blue" ? "red" : "blue";
-        const folderColor =
-          SWAP_TEAM_SPRITES && type !== "back" ? other : color;
-        return `busts/${folderColor}_${type}.png`;
+        // A hidden pawn always shows the shield in the colour of its OWNER (an enemy pawn = the enemy's colour).
+        if (type === "back") return `busts/${color}_back.png`;
+        const uniform = SAME_SPRITES_FOR_BOTH ? SHARED_UNIFORM : color;
+        const file = SWAP_TEAM_SPRITES
+          ? uniform === "blue"
+            ? "red"
+            : "blue"
+          : uniform;
+        return `busts/${file}_${type}.png`;
       }
       const TOTAL = 40; // pawns per player (for the "Fallen 3 / 40" counter)
+      const ROOM_ID_LENGTH = 6; // length of the room IDs
+      const VIBRATE_ON_TURN = true; // ★ vibrate (on phones that support it) when it becomes your turn
+      const VIBRATION = [200, 100, 200]; // vibration pattern in ms: buzz, pause, buzz
+      const SHOW_LAST_MOVE_ARROW = true; // ★ arrow from -> to for the last move, until the next move
+      const SHOW_FIGHT_BADGE = true; // ★ keep both soldiers of the last fight visible on the field until the next move
+      // Runs a function and never lets an error (for example in the sound) break the game.
+      const safe = (fn) => {
+        try {
+          fn();
+        } catch (e) {
+          console.warn(e);
+        }
+      };
       const POLL_MS = 600; // how often we ask the server for news
       const LABELS = {
         // number written on each pawn (classic numbering: 1 = strongest)
@@ -527,6 +798,10 @@
       let seenMove = null; // number of the last move we already know about (for the move sound)
       let queue = []; // fights waiting to be animated: [{ battle, view }]
       let anim = null; // the fight being animated right now (or null)
+      let seenNotice = null; // number of the last message (toast) we already showed
+      let wasMyTurn = null; // was it my turn in the state shown before? (null = not known yet)
+      let leaveConfirm = false; // true while my "Leave the game?" window is open
+      let toastTimer = null;
       let cw = 40,
         ch = 60; // size of one square in pixels (set in render)
       const $ = (id) => document.getElementById(id); // shortcut: $('board')
@@ -597,6 +872,107 @@
             tone(start, freq, 0.9 - i * 0.15, gain / (i + 1)),
           );
         }
+
+        // ---- Helpers for the "Swords & Sandals" fight sound ----
+        // Distortion curve: squashes the sound so it gets crunchy and gritty, like the old arcade game.
+        let crunch = null;
+        function crunchCurve() {
+          if (crunch) return crunch;
+          const k = 60; // ★ more = dirtier
+          crunch = new Float32Array(256);
+          for (let i = 0; i < 256; i++) {
+            const x = (i * 2) / 256 - 1;
+            crunch[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
+          }
+          return crunch;
+        }
+        // A heavy sword clang: metal tones (not multiples of each other) pushed through the distortion.
+        // base = pitch in Hz (lower = bigger sword), gain = loudness.
+        function metalHit(start, gain, base) {
+          const shaper = ctx.createWaveShaper();
+          shaper.curve = crunchCurve();
+          const volume = ctx.createGain();
+          volume.gain.setValueAtTime(gain * VOLUME, start);
+          volume.gain.exponentialRampToValueAtTime(0.001, start + 0.7);
+          shaper.connect(volume);
+          volume.connect(ctx.destination);
+          [1, 2.76, 5.4, 8.93].forEach((ratio, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = i === 0 ? "square" : "triangle";
+            osc.frequency.value = base * ratio;
+            const level = ctx.createGain();
+            level.gain.setValueAtTime(0.5 / (i + 1), start);
+            level.gain.exponentialRampToValueAtTime(
+              0.001,
+              start + 0.6 - i * 0.1,
+            );
+            osc.connect(level);
+            level.connect(shaper);
+            osc.start(start);
+            osc.stop(start + 0.7);
+          });
+        }
+        // A meaty impact: deep thump + a short burst of dull noise (shield bang / blade in flesh).
+        function thud(start, gain) {
+          tone(start, 160, 0.22, gain, 45);
+          noise(start, 0.08, "lowpass", 900, gain * 0.8);
+        }
+        // A fighter's grunt "uh!": a buzzing tone shaped by two vowel filters (formants).
+        function grunt(start, pitch, duration, gain) {
+          const osc = ctx.createOscillator();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(pitch, start);
+          osc.frequency.exponentialRampToValueAtTime(
+            pitch * 0.6,
+            start + duration,
+          );
+          const volume = ctx.createGain();
+          volume.gain.setValueAtTime(0.001, start);
+          volume.gain.exponentialRampToValueAtTime(gain * VOLUME, start + 0.03);
+          volume.gain.exponentialRampToValueAtTime(0.001, start + duration);
+          [
+            [650, 1],
+            [1080, 0.6],
+          ].forEach(([freq, level]) => {
+            const filter = ctx.createBiquadFilter();
+            filter.type = "bandpass";
+            filter.frequency.value = freq;
+            filter.Q.value = 4;
+            const amount = ctx.createGain();
+            amount.gain.value = level;
+            osc.connect(filter);
+            filter.connect(amount);
+            amount.connect(volume);
+          });
+          volume.connect(ctx.destination);
+          osc.start(start);
+          osc.stop(start + duration + 0.05);
+        }
+        // The arena crowd going "ooooh": filtered noise that swells up and fades away.
+        function crowd(start, duration, gain) {
+          const length = Math.floor(ctx.sampleRate * duration);
+          const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          const filter = ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.value = 800;
+          filter.Q.value = 0.7;
+          const volume = ctx.createGain();
+          volume.gain.setValueAtTime(0.001, start);
+          volume.gain.linearRampToValueAtTime(
+            gain * VOLUME,
+            start + duration * 0.3,
+          );
+          volume.gain.exponentialRampToValueAtTime(0.001, start + duration);
+          source.connect(filter);
+          filter.connect(volume);
+          volume.connect(ctx.destination);
+          source.start(start);
+        }
+
         return {
           unlock,
           get enabled() {
@@ -675,8 +1051,13 @@
 
       // "Join" button: enter a room, remember who we are, start the game screen.
       async function joinGame() {
+        const room = $("room").value.trim().toUpperCase();
+        if (room.length !== ROOM_ID_LENGTH) {
+          $("err").textContent =
+            `The room ID needs ${ROOM_ID_LENGTH} characters. Press "Generate ID" to get one.`;
+          return;
+        }
         try {
-          const room = $("room").value.trim() || "home";
           const r = await api("/api/join", { room, ai: $("ai").checked });
           session = { room, token: r.token, color: r.color };
           sessionStorage.setItem("stratego", JSON.stringify(session)); // survives a page refresh
@@ -713,13 +1094,13 @@
       // Send my action (SWAP / RESHUFFLE / READY / MOVE / NEW_GAME). The answer is the new state.
       async function send(action) {
         try {
-          receive(
-            await api("/api/action", {
-              room: session.room,
-              token: session.token,
-              action,
-            }),
-          );
+          const r = await api("/api/action", {
+            room: session.room,
+            token: session.token,
+            action,
+          });
+          if (r.left) return goHome(); // the room is gone: back to the home screen
+          receive(r);
         } catch (e) {}
       }
 
@@ -730,14 +1111,22 @@
       //    the board (where the surviving pawns are hidden again).
       // =====================================================================
       function receive(v) {
+        if (v.closed) return goHome("The game was closed: both players left."); // both agreed to leave
         latest = v;
         const moveSeq = v.move_seq || 0;
         if (seenSeq === null || v.battle_seq < seenSeq) seenSeq = v.battle_seq; // first load / new game: no animation
         if (seenMove === null || moveSeq < seenMove) seenMove = moveSeq;
+        if (seenNotice === null || v.notice.seq < seenNotice)
+          seenNotice = v.notice.seq;
+        if (v.notice.seq > seenNotice) {
+          // a short message for me (for example "your opponent declined")
+          seenNotice = v.notice.seq;
+          if (v.notice.text) showToast(v.notice.text);
+        }
         const isFight = v.battle_seq > seenSeq;
         if (moveSeq > seenMove) {
           seenMove = moveSeq;
-          if (!isFight) Sound.move(); // a plain move (fights play their own sounds in playBattle)
+          if (!isFight) safe(() => Sound.move()); // a plain move (fights play their own sounds in playBattle)
         }
         if (isFight) {
           queue.push({ battle: v.last_battle, view: v });
@@ -747,15 +1136,17 @@
       }
 
       // Called when nothing is animating: start the next queued fight, or just draw the newest state.
+      // Called when nothing is animating: start the next queued fight, or just draw the newest state.
       function showNext() {
         if (queue.length) {
           const item = queue.shift();
           view = item.view;
           playBattle(item.battle);
-        } else {
-          view = latest;
-          render();
+          return;
         }
+        view = latest;
+        render();
+        notifyTurn();
       }
 
       // =====================================================================
@@ -841,7 +1232,7 @@
         const el = document.createElement("div");
         el.className = "pawn";
         el.style.cssText = `left:${pos.left}px;top:${pos.top}px;width:${cw}px;height:${ch}px`;
-        el.innerHTML = `<div class="body"><img src="${spriteUrl(piece.color === "blue" ? "red" : "blue", "back")}"><span class="rank"></span></div>`;
+        el.innerHTML = `<div class="body"><img src="${spriteUrl(piece.color, "back")}"><span class="tag"></span></div>`;
         $("overlay").appendChild(el);
         return el;
       }
@@ -849,8 +1240,11 @@
       function faceUp(el, piece) {
         const body = el.firstChild;
         body.querySelector("img").src = spriteUrl(piece.color, piece.type);
-        body.querySelector(".rank").textContent = LABELS[piece.type];
+        const tag = body.querySelector(".tag");
+        tag.textContent = `${LABELS[piece.type]} · ${piece.type[0].toUpperCase() + piece.type.slice(1)}`;
+        tag.style.display = "block"; // name + number under the soldier
         body.classList.add("reveal");
+        el.classList.add("big"); // the soldier is shown bigger
       }
       // Pawns that die in a fight.
       function losers(b) {
@@ -861,10 +1255,15 @@
             : [b.attacker, b.defender];
       }
 
+      // How long a fight lasts. ★ 1 = normal, 1.5 = slower, 0.7 = faster
+      const FIGHT_SPEED = 1;
       function playBattle(b) {
         anim = b;
         selected = null;
-        render(true); // draws the board with the two squares emptied
+        render(true); // draws the board with the two fighting squares emptied
+        const overlay = $("overlay");
+        overlay.classList.add("dim"); // darkens the rest of the board so the two fighters stand out
+        const ms = (n) => n * FIGHT_SPEED; // all times below are multiplied by FIGHT_SPEED
         const from = cellPos(...b.from),
           to = cellPos(...b.to);
         const A = makePawn(b.attacker, from),
@@ -875,30 +1274,33 @@
           el.style.transform = `translate(${left - from.left}px, ${top - from.top}px)`;
         };
 
-        after(100, () => {
-          Sound.move(); // the attacker slides towards the defender
-          slide(A, to.left - sx * cw * 0.55, to.top - sy * ch * 0.55);
-        }); // approach
-        after(550, () => {
-          // reveal + clash
-          Sound.clash(); // swords hit each other
-          faceUp(A, b.attacker);
+        // 0.1 s: the attacker walks up to the defender and stops right next to it
+        after(ms(100), () => {
+          safe(() => Sound.move());
+          slide(A, to.left - sx * cw * 0.85, to.top - sy * ch * 0.85);
+        });
+        // 0.7 s: both soldiers turn face-up (bigger, with name and number) and the swords hit
+        after(ms(700), () => {
+          faceUp(A, b.attacker); // first the pictures: they must always appear, whatever happens to the sound
           faceUp(D, b.defender);
+          safe(() => Sound.clash());
           const boom = document.createElement("div");
           boom.className = "boom";
           boom.textContent = "💥";
-          boom.style.left = to.left + cw / 2 - 17 + "px";
-          boom.style.top = to.top + ch / 2 - 17 + "px";
-          $("overlay").appendChild(boom);
+          boom.style.left = to.left - sx * cw * 0.4 + cw / 2 - 17 + "px";
+          boom.style.top = to.top - sy * ch * 0.4 + ch / 2 - 17 + "px";
+          overlay.appendChild(boom);
         });
-        after(1350, () => {
-          // loser disappears
+        // 2.0 s: the loser disappears (the winner steps onto the square)
+        after(ms(2000), () => {
           if (b.result !== "defender") D.firstChild.classList.add("dead");
           if (b.result !== "attacker") A.firstChild.classList.add("dead");
-          if (b.result === "attacker") slide(A, to.left, to.top); // winner takes the square
+          if (b.result === "attacker") slide(A, to.left, to.top);
         });
-        after(1900, () => {
-          $("overlay").innerHTML = "";
+        // 2.6 s: animation over: the board is shown again (survivors face-down again, last-fight marks drawn)
+        after(ms(2600), () => {
+          overlay.innerHTML = "";
+          overlay.classList.remove("dim");
           anim = null;
           showNext();
         });
@@ -951,6 +1353,7 @@
           innerWidth,
           viewportHeight(),
           anim && anim.seq,
+          leaveConfirm,
         ]);
         if (key === lastKey && !force) return;
         lastKey = key;
@@ -963,13 +1366,14 @@
         const H = viewportHeight(); // the REAL visible height (works with phone address bars)
         document.documentElement.style.setProperty("--app-h", H + "px");
         const cs = getComputedStyle($("game")); // space kept free for the notch / home bar
-        const safe = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+        const safeArea =
+          parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
         const landscape = innerWidth > H * 1.1;
         document.body.classList.toggle("landscape", landscape);
         const availW = landscape ? innerWidth - 2 * SIDE_MIN - 28 : innerWidth;
         const availH = landscape
-          ? H - safe - 16
-          : H - safe - TOP - BOTTOM - 2 * STRIP_H;
+          ? H - safeArea - 16
+          : H - safeArea - TOP - BOTTOM - 2 * STRIP_H;
         const cw0 = Math.floor(availW / SIZE);
         ch = Math.floor(Math.min(availH / SIZE, cw0 * 1.8)); // square height
         cw = Math.min(cw0, Math.floor(ch * (landscape ? 0.85 : 0.75))); // square width
@@ -986,9 +1390,17 @@
         root.setProperty("--mh", mini[1] + "px");
 
         // --- top bar: status + result of the last fight (with numbers) ---
-        $("who").className = "badge " + me;
-        $("who").textContent = me.toUpperCase(); // which colour I am
+        const currentColor =
+          view.turn === session.color
+            ? session.color
+            : session.color === "red"
+              ? "blue"
+              : "red";
+
+        $("who").className = "badge " + currentColor;
+        $("who").textContent = currentColor.toUpperCase();
         $("statusText").textContent = statusText();
+
         const b = view.last_battle;
         const side = (p) =>
           `<img src="${spriteUrl(p.color, p.type)}"><b>${LABELS[p.type]}</b>`;
@@ -996,7 +1408,7 @@
           ? `${side(b.attacker)} <span>${b.result === "attacker" ? "⚔️ wins" : b.result === "defender" ? "🛡 loses" : "💥 both fall"}</span> ${side(b.defender)}`
           : "";
 
-        // --- dead pawn trays ---
+        // --- fallen pawn trays ---
         drawTray($("trayEnemy"), enemy, "Opponent");
         drawTray($("trayMine"), me, "You");
 
@@ -1039,23 +1451,29 @@
         // --- bottom buttons depend on the phase ---
         const btn = (label, js, primary) =>
           `<button class="${primary ? "primary" : ""}" onclick="${js}">${label}</button>`;
-        $("bottom").innerHTML =
-          view.phase === "setup" && !view.ready[me]
-            ? btn("Shuffle", "send({type:'RESHUFFLE'})") +
-              btn("Ready", "selected=null;send({type:'READY'})", true)
-            : view.phase === "setup"
-              ? ""
-              : btn(
-                  "New game",
-                  "selected=null;send({type:'NEW_GAME'})",
-                  view.phase === "over",
-                );
+        let buttons;
+        if (view.phase === "setup" && !view.ready[me]) {
+          buttons =
+            btn("Shuffle", "send({type:'RESHUFFLE'})") +
+            btn("Ready", "selected=null;send({type:'READY'})", true) +
+            btn("Leave", "askLeave()");
+        } else if (view.phase === "over") {
+          buttons =
+            btn("Play again", "selected=null;send({type:'NEW_GAME'})", true) +
+            btn("Home", "leaveNow()");
+        } else {
+          buttons = btn("Leave", "askLeave()");
+        }
         // small buttons: sound on/off and full screen (the full-screen button only shows if the browser supports it)
-        $("bottom").innerHTML +=
+        buttons +=
           `<button class="icon-btn" onclick="toggleSound()">${Sound.enabled ? "🔊" : "🔇"}</button>` +
           (fullscreenSupported()
             ? `<button class="icon-btn" onclick="toggleFullscreen()">⛶</button>`
             : "");
+        $("bottom").innerHTML = buttons;
+
+        renderModal(); // the "leave the game" windows
+        drawMarks(); // arrow of the last move + the soldiers of the last fight
       }
 
       function toggleSound() {
@@ -1096,12 +1514,272 @@
       );
 
       // =====================================================================
+      // 8b. NEW: room ID, marks on the board, leaving, toast, vibration
+      // =====================================================================
+      // ---- Room ID: 6 random characters (no 0/O/1/I, they are easy to confuse) ----
+      const ROOM_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      function generateRoomId() {
+        const random = new Uint32Array(ROOM_ID_LENGTH);
+        (
+          window.crypto || {
+            getRandomValues: (a) =>
+              a.forEach((_, i) => (a[i] = Math.random() * 4294967296)),
+          }
+        ).getRandomValues(random);
+        return Array.from(
+          random,
+          (n) => ROOM_CHARS[n % ROOM_CHARS.length],
+        ).join("");
+      }
+      function fillRoomId() {
+        // "Generate ID" button
+        $("room").value = generateRoomId();
+        $("err").textContent = "";
+      }
+      function cleanRoomId() {
+        // while typing: capital letters and digits only
+        $("room").value = $("room")
+          .value.toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+          .slice(0, ROOM_ID_LENGTH);
+      }
+
+      // ---- Marks: arrow of the last move, and the two soldiers of the last fight (until the next move) ----
+
+      function drawMarks() {
+        const marks = $("marks");
+        marks.innerHTML = "";
+
+        const m = view.last_move;
+        if (anim || !m) return;
+
+        const a = cellPos(...m.from);
+        const b = cellPos(...m.to);
+
+        if (!SHOW_LAST_MOVE_ARROW) return;
+
+        const x1 = a.left + cw / 2;
+        const y1 = a.top + ch / 2;
+        const x2 = b.left + cw / 2;
+        const y2 = b.top + ch / 2;
+
+        const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+        const ux = (x2 - x1) / len;
+        const uy = (y2 - y1) / len;
+
+        const w = Math.max(5, cw * 0.12);
+        const inset = Math.min(cw, ch) * 0.24;
+
+        // Flat starting point and inset destination
+        const sx = x1 + ux * inset;
+        const sy = y1 + uy * inset;
+        const ex = x2 - ux * (inset + w * 1.4);
+        const ey = y2 - uy * (inset + w * 1.4);
+
+        const color = m.color === "blue" ? "#6aa6ff" : "#ff7a66";
+        const dark = m.color === "blue" ? "#174b9b" : "#a52b20";
+        const glow = m.color === "blue" ? "#b9d8ff" : "#ffc0a8";
+
+        const dx = ex - sx;
+        const dy = ey - sy;
+        const bodyLen = Math.hypot(dx, dy) || 1;
+        const px = -dy / bodyLen;
+        const py = dx / bodyLen;
+
+        // Tapered body and pointed arrowhead
+        const tailW = w * 0.42;
+        const headW = w * 1.05;
+
+        const headStartX = ex - ux * w * 1.8;
+        const headStartY = ey - uy * w * 1.8;
+
+        const points = [
+          [sx + px * tailW, sy + py * tailW],
+          [headStartX + px * tailW * 1.45, headStartY + py * tailW * 1.45],
+          [headStartX + px * headW, headStartY + py * headW],
+          [ex, ey],
+          [headStartX - px * headW, headStartY - py * headW],
+          [headStartX - px * tailW * 1.45, headStartY - py * tailW * 1.45],
+          [sx - px * tailW, sy - py * tailW],
+        ]
+          .map((p) => p.join(","))
+          .join(" ");
+
+        marks.innerHTML = `
+    <svg
+      width="${cw * SIZE}"
+      height="${ch * SIZE}"
+      viewBox="0 0 ${cw * SIZE} ${ch * SIZE}"
+      style="position:absolute;left:0;top:0;overflow:visible;pointer-events:none"
+    >
+      <defs>
+        <linearGradient
+          id="moveArrowGradient"
+          x1="${sx}" y1="${sy}"
+          x2="${ex}" y2="${ey}"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0%" stop-color="${dark}" stop-opacity="0.45"/>
+          <stop offset="55%" stop-color="${color}" stop-opacity="0.82"/>
+          <stop offset="100%" stop-color="${glow}" stop-opacity="1"/>
+        </linearGradient>
+
+        <filter
+          id="moveArrowShadow"
+          x="-50%" y="-50%"
+          width="200%" height="200%"
+        >
+          <feGaussianBlur stdDeviation="${w * 0.32}"/>
+        </filter>
+      </defs>
+
+      <!-- Offset shadow -->
+      <polygon
+        points="${points}"
+        fill="#000"
+        opacity="0.48"
+        transform="translate(1.5 2)"
+      />
+
+      <!-- Soft destination glow -->
+      <polygon
+        points="${points}"
+        fill="${color}"
+        opacity="0.35"
+        filter="url(#moveArrowShadow)"
+      />
+
+      <!-- Main tactical arrow -->
+      <polygon
+        points="${points}"
+        fill="url(#moveArrowGradient)"
+        stroke="${dark}"
+        stroke-width="${Math.max(1, w * 0.09)}"
+        stroke-linejoin="miter"
+      />
+
+      <!-- Highlight near the tip -->
+      <path
+        d="M ${headStartX} ${headStartY}
+           L ${ex - ux * w * 0.35} ${ey - uy * w * 0.35}"
+        stroke="${glow}"
+        stroke-opacity="0.7"
+        stroke-width="${Math.max(1, w * 0.09)}"
+        fill="none"
+      />
+    </svg>
+  `;
+      }
+
+      // ---- Leaving a game: I confirm, then my opponent has to accept too ----
+      function askLeave() {
+        // "Leave" button
+        leaveConfirm = true;
+        render(true);
+      }
+      function closeLeaveConfirm() {
+        leaveConfirm = false;
+        render(true);
+      }
+      function confirmLeave() {
+        // I confirmed. Alone / vs computer: leave now. Otherwise ask the opponent.
+        leaveConfirm = false;
+        if (view.vs_ai || !view.opponent_joined) return leaveNow();
+        send({ type: "LEAVE_REQUEST" });
+        render(true);
+      }
+      const cancelLeave = () => send({ type: "LEAVE_CANCEL" });
+      const acceptLeave = () => send({ type: "LEAVE_ACCEPT" });
+      const declineLeave = () => send({ type: "LEAVE_DECLINE" });
+      async function leaveNow() {
+        // go to the home screen (game over, or nobody else in the room)
+        try {
+          await api("/api/action", {
+            room: session.room,
+            token: session.token,
+            action: { type: "LEAVE_NOW" },
+          });
+        } catch (e) {}
+        goHome();
+      }
+      function goHome(message) {
+        // forget the game and show the home screen
+        sessionStorage.clear();
+        if (message) sessionStorage.setItem("stratego-msg", message);
+        location.reload();
+      }
+
+      // The window in the middle of the screen. What it shows depends on the state of the leave request.
+      function renderModal() {
+        const me = session.color,
+          modal = $("modal");
+        const box = (text, buttons) =>
+          `<div class="box"><p>${text}</p><div class="actions">${buttons
+            .map(
+              ([label, js, primary]) =>
+                `<button class="${primary ? "primary" : ""}" onclick="${js}">${label}</button>`,
+            )
+            .join("")}</div></div>`;
+        const alone = view.vs_ai || !view.opponent_joined;
+        let html = "";
+        if (view.leave && view.leave.by !== me) {
+          html = box("Your opponent wants to leave the game. Do you accept?", [
+            ["Accept", "acceptLeave()", true],
+            ["Decline", "declineLeave()"],
+          ]);
+        } else if (view.leave) {
+          html = box("Waiting for your opponent to accept…", [
+            ["Cancel request", "cancelLeave()"],
+          ]);
+        } else if (leaveConfirm) {
+          html = box(
+            alone
+              ? "Leave the game?"
+              : "Leave the game? Your opponent also has to accept.",
+            [
+              ["Leave", "confirmLeave()", true],
+              ["Stay", "closeLeaveConfirm()"],
+            ],
+          );
+        }
+        modal.style.display = html ? "flex" : "none";
+        modal.innerHTML = html;
+      }
+
+      function showToast(text) {
+        // a message at the top of the screen for 3.5 seconds
+        const toast = $("toast");
+        toast.textContent = text;
+        toast.style.display = "block";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => (toast.style.display = "none"), 3500);
+      }
+
+      // ---- Vibration when it becomes my turn (only phones that support it; iPhone Safari does not) ----
+      function notifyTurn() {
+        const mine = view.phase === "play" && view.turn === session.color;
+        if (wasMyTurn === false && mine && VIBRATE_ON_TURN && navigator.vibrate)
+          navigator.vibrate(VIBRATION);
+        wasMyTurn = mine;
+      }
+
+      // =====================================================================
       // 9. START: if the page was refreshed, go back to the game we were in
       // =====================================================================
       const saved = sessionStorage.getItem("stratego");
       if (saved) {
         session = JSON.parse(saved);
         startGame();
+      }
+
+      // On the home screen: fill in a fresh random room ID and show the message of the last game, if any.
+      if (!session) {
+        fillRoomId();
+        const message = sessionStorage.getItem("stratego-msg");
+        if (message) {
+          $("info").textContent = message;
+          sessionStorage.removeItem("stratego-msg");
+        }
       }
     </script>
   </body>
