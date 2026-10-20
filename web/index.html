@@ -526,6 +526,7 @@
         touch-action: pan-x;
         align-items: center;
         scrollbar-width: thin;
+        padding-bottom: 10px;
       }
       body:not(.landscape) .tray-pieces {
         flex: 1;
@@ -553,17 +554,17 @@
       .pawn .tag {
         display: none;
         position: absolute;
-        left: 50%;
-        bottom: -6px;
-        transform: translateX(-50%);
+        left: 2px;
+        bottom: 2px;
+        transform: none;
         white-space: nowrap;
-        font-size: max(11px, calc(var(--cw) * 0.3));
-        font-weight: 800;
+        font-size: max(9px, calc(var(--cw) * 0.24));
+        font-weight: 700;
         color: #fff;
-        background: rgba(0, 0, 0, 0.85);
-        border: 1px solid #ffb000;
-        padding: 1px 7px;
-        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.7);
+        /* border: 1px solid #ff3c00; */
+        padding: 1px 4px;
+        border-radius: 6px;
         z-index: 3;
       } /* "1 · Marshal" */
 
@@ -1241,11 +1242,12 @@
         const body = el.firstChild;
         body.querySelector("img").src = spriteUrl(piece.color, piece.type);
         const tag = body.querySelector(".tag");
-        tag.textContent = `${LABELS[piece.type]} · ${piece.type[0].toUpperCase() + piece.type.slice(1)}`;
+        tag.textContent = `${LABELS[piece.type]}`; // · ${piece.type[0].toUpperCase() + piece.type.slice(1)}
         tag.style.display = "block"; // name + number under the soldier
         body.classList.add("reveal");
         el.classList.add("big"); // the soldier is shown bigger
       }
+
       // Pawns that die in a fight.
       function losers(b) {
         return b.result === "attacker"
