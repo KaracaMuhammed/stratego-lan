@@ -27,6 +27,12 @@
         --move: rgba(255, 255, 255, 0.8); /* dot on squares you can move to */
         --attack: #e2552d; /* frame on enemy squares you can attack */
       }
+      @media (pointer: coarse) {
+        :root {
+          --pawn-scale: 1.7;
+          --pawn-shift: 6px;
+        }
+      }
       * {
         box-sizing: border-box;
       }
@@ -258,7 +264,7 @@
         transform: scale(
           var(--pawn-scale)
         ); /* ★ PAWN SIZE: change --pawn-scale at the top of this CSS */
-        transform-origin: 50% 85%; /* the pawn grows upward, its base stays in its square */
+        transform-origin: 50% 65%; /* the pawn grows upward, its base stays in its square */
       }
       .rank {
         position: absolute;
